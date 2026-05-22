@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aplikasi Penilaian Murid</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --primary:#38bdf8;
+      --primary-dark:#0284c7;
+      --text:#1e293b;
+      --muted:#64748b;
+      --green:#16a34a;
+      --red:#dc2626;
+      --border:#dbeafe;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      font-family:"Segoe UI",Arial,sans-serif;
+      background:linear-gradient(135deg,#e0f2fe,#ffffff);
+      color:var(--text);
+    }
+
+    header{
+      background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+      color:white;
+      padding:28px 36px;
+      border-bottom-left-radius:28px;
+      border-bottom-right-radius:28px;
+      box-shadow:0 8px 25px rgba(2,132,199,.25);
+    }
+
+    header h1{margin:0;font-size:30px}
+    header p{margin:8px 0 0}
+
+    nav{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      padding:22px 36px 8px;
+    }
+
+    nav button,.btn{
+      border:0;
+      background:white;
+      color:var(--primary-dark);
+      padding:11px 16px;
+      border-radius:14px;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow:0 4px 14px rgba(15,23,42,.08);
+    }
+
+    .container{padding:22px 36px 40px}
+
+    section{
+      display:none;
+      background:white;
+      border:1px solid var(--border);
+      border-radius:24px;
+      padding:24px;
+      box-shadow:0 8px 25px rgba(15,23,42,.08);
+      margin-bottom:24px;
+    }
+
+    section.active{display:block}
+
+    h2{margin-top:0;color:var(--primary-dark)}
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .card{
+      background:linear-gradient(180deg,#ffffff,#f0f9ff);
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:18px;
+    }
+
+    .card small{color:var(--muted);font-weight:600}
+    .card strong{display:block;margin-top:8px;font-size:28px;color:var(--primary-dark)}
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    input,select{
+      width:100%;
+      padding:11px 12px;
+      border:1px solid #bfdbfe;
+      border-radius:12px;
+      outline:none;
+      font-size:14px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:white;
+    }
+
+    th{
+      background:#bae6fd;
+      color:#075985;
+      padding:12px;
+      text-align:center;
+      font-size:13px;
+    }
+
+    td{
+      padding:10px;
+      border-bottom:1px solid #e0f2fe;
+      text-align:center;
+      font-size:13px;
+    }
+
+    .table-wrap{
+      overflow:auto;
+      border-radius:16px;
+      border:1px solid var(--border);
+    }
+
+    .status-tuntas{
+      color:white;
+      background:var(--green);
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+    }
+
+    .status-belum{
+      color:white;
+      background:var(--red);
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+    }
+
+    .rank{font-weight:800;color:#0369a1}
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:14px 0;
+    }
+
+    .danger{
+      background:#fee2e2!important;
+      color:#b91c1c!important;
+    }
+
+    canvas{
+      max-height:330px;
+      background:white;
+      border-radius:18px;
+      padding:12px;
+    }
+
+    @media print{
+      header,nav,.no-print{display:none}
+      section{display:block;box-shadow:none;border:0}
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Aplikasi Penilaian Murid</h1>
+  <p>Nilai otomatis, predikat, ketuntasan, ranking, dashboard, grafik, dan laporan cetak.</p>
+</header>
+
+<nav>
+  <button onclick="showSection('data')">Data Murid</button>
+  <button onclick="showSection('penilaian')">Penilaian</button>
+  <button onclick="showSection('dashboard')">Dashboard</button>
+  <button onclick="showSection('rekap')">Rekap Semester</button>
+  <button onclick="showSection('laporan')">Laporan Cetak</button>
+</nav>
+
+<main class="container">
+
+<section id="data" class="active">
+  <h2>Data Murid</h2>
+
+  <div class="form-grid">
+    <input id="absen" type="number" placeholder="Nomor Absen">
+    <input id="nama" type="text" placeholder="Nama Murid">
+    <input id="nis" type="text" placeholder="NIS">
+    <input id="kelas" type="text" placeholder="Kelas">
+    <select id="jk">
+      <option value="">Jenis Kelamin</option>
+      <option>Laki-laki</option>
+      <option>Perempuan</option>
+    </select>
+  </div>
+
+  <div class="actions">
+    <button class="btn" onclick="tambahMurid()">+ Tambah Murid</button>
+    <button class="btn danger" onclick="hapusSemua()">Hapus Semua Data</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>No Absen</th>
+          <th>Nama Murid</th>
+          <th>NIS</th>
+          <th>Kelas</th>
+          <th>Jenis Kelamin</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="penilaian">
+  <h2>Penilaian Murid</h2>
+  <p>Nilai akhir = Tugas 25% + UH 25% + PTS 20% + PAS 30%.</p>
+
+  <div class="actions">
+    <button class="btn" onclick="downloadExcel()">Unduh Hasil Excel</button>
+    <button class="btn" onclick="downloadCSV()">Unduh CSV</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ranking</th>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Kelas</th>
+          <th>Tugas</th>
+          <th>UH</th>
+          <th>PTS</th>
+          <th>PAS</th>
+          <th>Kehadiran</th>
+          <th>Nilai Akhir</th>
+          <th>Predikat</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="nilaiBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="dashboard">
+  <h2>Dashboard Otomatis</h2>
+
+  <div class="grid">
+    <div class="card"><small>Jumlah Murid</small><strong id="jumlahMurid">0</strong></div>
+    <div class="card"><small>Rata-rata Kelas</small><strong id="rataKelas">0</strong></div>
+    <div class="card"><small>Nilai Tertinggi</small><strong id="nilaiTinggi">0</strong></div>
+    <div class="card"><small>Nilai Terendah</small><strong id="nilaiRendah">0</strong></div>
+    <div class="card"><small>Ketuntasan</small><strong id="persenTuntas">0%</strong></div>
+  </div>
+
+  <div class="grid">
+    <canvas id="piePredikat"></canvas>
+    <canvas id="barNilai"></canvas>
+    <canvas id="chartTuntas"></canvas>
+  </div>
+</section>
+
+<section id="rekap">
+  <h2>Rekap Semester</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ranking</th>
+          <th>Nama</th>
+          <th>Kelas</th>
+          <th>Nilai Akhir</th>
+          <th>Predikat</th>
+          <th>Status</th>
+          <th>Keterangan</th>
+        </tr>
+      </thead>
+      <tbody id="rekapBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="laporan">
+  <h2>Laporan Cetak Nilai</h2>
+  <div class="actions no-print">
+    <button class="btn" onclick="window.print()">Cetak / Simpan PDF</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ranking</th>
+          <th>No</th>
+          <th>Nama</th>
+          <th>Kelas</th>
+          <th>Nilai Akhir</th>
+          <th>Predikat</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="laporanBody"></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<script>
+let murid = JSON.parse(localStorage.getItem("muridPenilaian")) || [];
+let pieChart, barChart, tuntasChart;
+
+function simpan(){
+  localStorage.setItem("muridPenilaian", JSON.stringify(murid));
+}
+
+function showSection(id){
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  render();
+}
+
+function tambahMurid(){
+  const data = {
+    absen: document.getElementById("absen").value,
+    nama: document.getElementById("nama").value,
+    nis: document.getElementById("nis").value,
+    kelas: document.getElementById("kelas").value,
+    jk: document.getElementById("jk").value,
+    tugas:0,
+    uh:0,
+    pts:0,
+    pas:0,
+    hadir:0
+  };
+
+  if(!data.absen || !data.nama || !data.nis || !data.kelas || !data.jk){
+    alert("Lengkapi data murid terlebih dahulu.");
+    return;
+  }
+
+  murid.push(data);
+  simpan();
+  render();
+
+  document.getElementById("absen").value="";
+  document.getElementById("nama").value="";
+  document.getElementById("nis").value="";
+  document.getElementById("kelas").value="";
+  document.getElementById("jk").value="";
+}
+
+function hapusMurid(index){
+  if(confirm("Hapus data murid ini?")){
+    murid.splice(index,1);
+    simpan();
+    render();
+  }
+}
+
+function hapusSemua(){
+  if(confirm("Yakin ingin menghapus semua data?")){
+    murid = [];
+    simpan();
+    render();
+  }
+}
+
+function updateNilai(index, field, value){
+  murid[index][field] = Number(value);
+  simpan();
+  render();
+}
+
+function nilaiAkhir(m){
+  return (
+    Number(m.tugas)*0.25 +
+    Number(m.uh)*0.25 +
+    Number(m.pts)*0.20 +
+    Number(m.pas)*0.30
+  ).toFixed(2);
+}
+
+function predikat(nilai){
+  nilai = Number(nilai);
+  if(nilai >= 90) return "A";
+  if(nilai >= 80) return "B";
+  if(nilai >= 70) return "C";
+  return "D";
+}
+
+function status(nilai){
+  return Number(nilai) >= 75 ? "Tuntas" : "Belum Tuntas";
+}
+
+function dataRanking(){
+  return [...murid].map((m,i)=>({
+    ...m,
+    indexAsli:i,
+    akhir:Number(nilaiAkhir(m)),
+    pred:predikat(nilaiAkhir(m)),
+    stat:status(nilaiAkhir(m))
+  })).sort((a,b)=>b.akhir-a.akhir);
+}
+
+function render(){
+  renderData();
+  renderPenilaian();
+  renderDashboard();
+  renderRekap();
+  renderLaporan();
+}
+
+function renderData(){
+  const body = document.getElementById("dataBody");
+  body.innerHTML = "";
+
+  murid.forEach((m,i)=>{
+    body.innerHTML += `
+      <tr>
+        <td>${m.absen}</td>
+        <td>${m.nama}</td>
+        <td>${m.nis}</td>
+        <td>${m.kelas}</td>
+        <td>${m.jk}</td>
+        <td><button class="btn danger" onclick="hapusMurid(${i})">Hapus</button></td>
+      </tr>`;
+  });
+}
+
+function renderPenilaian(){
+  const body = document.getElementById("nilaiBody");
+  body.innerHTML = "";
+
+  dataRanking().forEach((m,rank)=>{
+    const asli = m.indexAsli;
+    const akhir = nilaiAkhir(m);
+    const stat = status(akhir);
+
+    body.innerHTML += `
+      <tr>
+        <td class="rank">${rank+1}</td>
+        <td>${m.absen}</td>
+        <td>${m.nama}</td>
+        <td>${m.kelas}</td>
+        <td><input type="number" min="0" max="100" value="${m.tugas}" onchange="updateNilai(${asli},'tugas',this.value)"></td>
+        <td><input type="number" min="0" max="100" value="${m.uh}" onchange="updateNilai(${asli},'uh',this.value)"></td>
+        <td><input type="number" min="0" max="100" value="${m.pts}" onchange="updateNilai(${asli},'pts',this.value)"></td>
+        <td><input type="number" min="0" max="100" value="${m.pas}" onchange="updateNilai(${asli},'pas',this.value)"></td>
+        <td><input type="number" min="0" max="100" value="${m.hadir}" onchange="updateNilai(${asli},'hadir',this.value)"></td>
+        <td><strong>${akhir}</strong></td>
+        <td><strong>${predikat(akhir)}</strong></td>
+        <td><span class="${stat==='Tuntas'?'status-tuntas':'status-belum'}">${stat}</span></td>
+      </tr>`;
+  });
+}
+
+function renderDashboard(){
+  const nilai = murid.map(m=>Number(nilaiAkhir(m)));
+  const jumlah = murid.length;
+  const rata = jumlah ? (nilai.reduce((a,b)=>a+b,0)/jumlah).toFixed(2) : 0;
+  const tinggi = jumlah ? Math.max(...nilai).toFixed(2) : 0;
+  const rendah = jumlah ? Math.min(...nilai).toFixed(2) : 0;
+  const tuntas = nilai.filter(n=>n>=75).length;
+  const belum = jumlah - tuntas;
+  const persen = jumlah ? ((tuntas/jumlah)*100).toFixed(1) : 0;
+
+  document.getElementById("jumlahMurid").innerText = jumlah;
+  document.getElementById("rataKelas").innerText = rata;
+  document.getElementById("nilaiTinggi").innerText = tinggi;
+  document.getElementById("nilaiRendah").innerText = rendah;
+  document.getElementById("persenTuntas").innerText = persen + "%";
+
+  const predCount = {A:0,B:0,C:0,D:0};
+  murid.forEach(m=>predCount[predikat(nilaiAkhir(m))]++);
+
+  if(pieChart) pieChart.destroy();
+  if(barChart) barChart.destroy();
+  if(tuntasChart) tuntasChart.destroy();
+
+  pieChart = new Chart(document.getElementById("piePredikat"), {
+    type:"pie",
+    data:{
+      labels:["A","B","C","D"],
+      datasets:[{data:[predCount.A,predCount.B,predCount.C,predCount.D]}]
+    },
+    options:{plugins:{title:{display:true,text:"Distribusi Predikat"}}}
+  });
+
+  barChart = new Chart(document.getElementById("barNilai"), {
+    type:"bar",
+    data:{
+      labels:murid.map(m=>m.nama),
+      datasets:[{label:"Nilai Akhir",data:nilai}]
+    },
+    options:{
+      plugins:{title:{display:true,text:"Nilai Akhir Murid"}},
+      scales:{y:{beginAtZero:true,max:100}}
+    }
+  });
+
+  tuntasChart = new Chart(document.getElementById("chartTuntas"), {
+    type:"doughnut",
+    data:{
+      labels:["Tuntas","Belum Tuntas"],
+      datasets:[{data:[tuntas,belum]}]
+    },
+    options:{plugins:{title:{display:true,text:"Ketuntasan Kelas"}}}
+  });
+}
+
+function renderRekap(){
+  const body = document.getElementById("rekapBody");
+  body.innerHTML = "";
+
+  dataRanking().forEach((m,i)=>{
+    body.innerHTML += `
+      <tr>
+        <td class="rank">${i+1}</td>
+        <td>${m.nama}</td>
+        <td>${m.kelas}</td>
+        <td>${m.akhir.toFixed(2)}</td>
+        <td>${m.pred}</td>
+        <td><span class="${m.stat==='Tuntas'?'status-tuntas':'status-belum'}">${m.stat}</span></td>
+        <td>${m.stat === "Tuntas" ? "Memenuhi KKTP" : "Perlu remedial / pembinaan"}</td>
+      </tr>`;
+  });
+}
+
+function renderLaporan(){
+  const body = document.getElementById("laporanBody");
+  body.innerHTML = "";
+
+  dataRanking().forEach((m,i)=>{
+    body.innerHTML += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${m.absen}</td>
+        <td>${m.nama}</td>
+        <td>${m.kelas}</td>
+        <td>${m.akhir.toFixed(2)}</td>
+        <td>${m.pred}</td>
+        <td>${m.stat}</td>
+      </tr>`;
+  });
+}
+
+function downloadExcel(){
+  const ranking = dataRanking().map((m,i)=>({
+    Ranking:i+1,
+    "No Absen":m.absen,
+    "Nama Murid":m.nama,
+    NIS:m.nis,
+    Kelas:m.kelas,
+    "Jenis Kelamin":m.jk,
+    Tugas:m.tugas,
+    UH:m.uh,
+    PTS:m.pts,
+    PAS:m.pas,
+    Kehadiran:m.hadir,
+    "Nilai Akhir":m.akhir.toFixed(2),
+    Predikat:m.pred,
+    Status:m.stat
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(ranking);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Hasil Penilaian");
+  XLSX.writeFile(wb, "hasil_penilaian_murid.xlsx");
+}
+
+function downloadCSV(){
+  const ranking = dataRanking();
+  let csv = "Ranking,No Absen,Nama,NIS,Kelas,Jenis Kelamin,Tugas,UH,PTS,PAS,Kehadiran,Nilai Akhir,Predikat,Status\n";
+
+  ranking.forEach((m,i)=>{
+    csv += `${i+1},${m.absen},"${m.nama}",${m.nis},${m.kelas},${m.jk},${m.tugas},${m.uh},${m.pts},${m.pas},${m.hadir},${m.akhir.toFixed(2)},${m.pred},${m.stat}\n`;
+  });
+
+  const blob = new Blob([csv], {type:"text/csv"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "hasil_penilaian_murid.csv";
+  link.click();
+}
+
+render();
+</script>
+</body>
+</html>
